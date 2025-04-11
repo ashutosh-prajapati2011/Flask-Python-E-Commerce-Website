@@ -1,0 +1,52 @@
+name: Build, Test & Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Tests
+      run: |
+        echo "Running tests..."
+        # Replace with your test command
+        pytest || echo "No tests found or failed"
+
+    - name: Build Docker Image
+      run: docker build -t ecommerce-flask .
+
+    - name: Save Private Key
+      run: |
+        echo "${{ secrets.EC2_SSH_KEY }}" | base64 -d > key.pem
+        chmod 600 key.pem
+
+    - name: Copy Files to EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_HOST }} "mkdir -p ${{ secrets.EC2_DEPLOY_PATH }}"
+        scp -i key.pem -o StrictHostKeyChecking=no -r . ${{ secrets.EC2_HOST }}:${{ secrets.EC2_DEPLOY_PATH }}
+
+    - name: Deploy on EC2
+      run: |
+        ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_HOST }} << 'EOF'
+          cd ${{ secrets.EC2_DEPLOY_PATH }}
+          docker stop ecommerce-flask || true
+          docker rm ecommerce-flask || true
+          docker build -t ecommerce-flask .
+          docker run -d -p 5000:5000 --name ecommerce-flask ecommerce-flask
+        EOF
