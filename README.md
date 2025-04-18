@@ -1,29 +1,42 @@
-# Python Flask E-Commerce Website
+# 🏍️ Flask E-Commerce Web Application
 
-A simple full-stack e-commerce website built using Flask (Python), Jinja2, SQLite, jQuery, Bootstrap, and Docker. It features product listings, shopping cart functionality, and category-based filtering. The database (SQLite) is used to store clothing item data, and the UI is styled using Bootstrap's responsive cards.
+A simple and fully functional **E-Commerce web app** developed using **Python Flask** for backend and **Bootstrap, jQuery** for frontend. Products are stored in a **SQLite** database and support features like product listing, category-based filtering, and shopping cart.
 
----
-
-## 🔄 Project Fork and Setup
-
-This project was cloned from the original GitHub repository:
-[https://github.com/haxamxam/Flask-Python-E-Commerce](https://github.com/haxamxam/Flask-Python-E-Commerce)
+> ✅ This repo was originally cloned from [haxamxam/Flask-Python-E-Commerce](https://github.com/haxamxam/Flask-Python-E-Commerce)
 
 ---
 
-## 🛠 Tech Stack
+## ⚙️ Tech Stack
 
-- **Frontend:** HTML, CSS, Bootstrap, jQuery
-- **Backend:** Python Flask, Jinja2
-- **Database:** SQLite
-- **DevOps:** Docker, GitHub Actions, Nginx, AWS EC2, Kubernetes
+- **Frontend**: HTML, CSS, Bootstrap, jQuery
+- **Backend**: Python Flask, Jinja2
+- **Database**: SQLite
+- **DevOps**: GitHub Actions, Docker, Nginx, EC2, Kubernetes
+- **Monitoring**: Prometheus, Grafana
 
 ---
 
-## 💻 Local Installation
+## ✨ Features
+
+- Product catalog with filters (Shirts, Pants, Shoes, etc.)
+- Add to cart functionality
+- Category-based filtering
+- Responsive UI using Bootstrap
+- SQLite-backed dynamic data
+
+---
+
+## 🧱 Local Setup
 
 ```bash
+# Clone the repo
+git clone https://github.com/haxamxam/Flask-Python-E-Commerce.git
+cd Flask-Python-E-Commerce
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Run the app
 python wsgi.py
 ```
 
@@ -33,33 +46,51 @@ Visit: `http://localhost:5000`
 
 ## 🐳 Docker Setup
 
-### Dockerfile
-```Dockerfile
+**Dockerfile**
+
+```dockerfile
 FROM python:3.9-slim
 WORKDIR /app
-COPY . /app
-RUN pip install -r requirements.txt
+COPY . .
+RUN pip install --upgrade pip && pip install -r requirements.txt
+EXPOSE 5000
 CMD ["python", "wsgi.py"]
 ```
 
-### Docker Commands
 ```bash
-docker build -t flask-ecommerce .
-docker run -d -p 5000:5000 flask-ecommerce
+docker build -t flask-ecom .
+docker run -p 5000:5000 flask-ecom
 ```
 
 ---
 
-## 🐙 GitHub Actions CI/CD Workflow
+## 📦 Docker Compose Setup (Frontend + Backend)
 
-### `.github/workflows/deploy.yml`
+```yaml
+version: '3'
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    restart: always
+```
+
+```bash
+docker-compose up -d
+```
+
+---
+
+## 🔄 GitHub Actions CI/CD Workflow
+
+**.github/workflows/main.yml**
+
 ```yaml
 name: CI/CD - Flask E-Commerce App
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
     branches: [ "main" ]
 
 jobs:
@@ -71,9 +102,7 @@ jobs:
         with:
           python-version: "3.9"
       - run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - run: |
           python wsgi.py &
           sleep 5
           curl --fail http://localhost:5000 || exit 1
@@ -86,7 +115,6 @@ jobs:
       - run: |
           echo "${{ secrets.EC2_KEY }}" > key.pem
           chmod 600 key.pem
-      - run: |
           ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             cd ${{ secrets.APP_DIR }}
             git pull origin main
@@ -98,67 +126,129 @@ jobs:
 
 ---
 
-## ☸ Kubernetes Deployment
+## ☁️ EC2 Setup Steps
 
-### 1. Docker Image Push (example)
 ```bash
-docker build -t your-dockerhub-username/flask-ecommerce .
-docker push your-dockerhub-username/flask-ecommerce
+# Login to EC2
+ssh -i "key.pem" ubuntu@your-ec2-ip
+
+# Pull the repo
+git clone https://github.com/haxamxam/Flask-Python-E-Commerce.git
+cd Flask-Python-E-Commerce
+
+# Run the app
+pip install -r requirements.txt
+nohup python3 wsgi.py &
 ```
 
-### 2. `deployment.yaml`
+---
+
+## ☘️ Kubernetes Deployment
+
+**deployment.yaml**
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: flask-ecommerce
+  name: flask-app
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
-      app: flask-ecommerce
+      app: flask-ecom
   template:
     metadata:
       labels:
-        app: flask-ecommerce
+        app: flask-ecom
     spec:
       containers:
-      - name: flask-ecommerce
-        image: your-dockerhub-username/flask-ecommerce
-        ports:
-        - containerPort: 5000
+        - name: flask-app
+          image: your-dockerhub-username/flask-ecom
+          ports:
+            - containerPort: 5000
 ```
 
-### 3. `service.yaml`
+**service.yaml**
+
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: flask-service
 spec:
-  type: LoadBalancer
   selector:
-    app: flask-ecommerce
+    app: flask-ecom
   ports:
-    - port: 80
+    - protocol: TCP
+      port: 80
       targetPort: 5000
+  type: LoadBalancer
 ```
 
 ---
 
-## 🔍 Features
+## 📊 Monitoring with Prometheus + Grafana
 
-- Product listing and filtering
-- Shopping cart
-- SQLite database
-- Responsive UI with Bootstrap
-- CI/CD with GitHub Actions
-- EC2 deployment using SSH
-- Dockerized application
-- Kubernetes-ready
+### Step 1: Install Prometheus and Grafana
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install monitoring prometheus-community/kube-prometheus-stack
+```
+
+### Step 2: Expose Grafana Dashboard
+
+```bash
+kubectl port-forward svc/monitoring-grafana 3000:80
+```
+
+Visit `http://localhost:3000`  
+Login with `admin/prom-operator`
+
+### Step 3: Add Metrics in Flask App
+
+```bash
+pip install prometheus_flask_exporter
+```
+
+```python
+from prometheus_flask_exporter import PrometheusMetrics
+metrics = PrometheusMetrics(app)
+```
+
+Now metrics are available at `/metrics`
+
+### Step 4: ServiceMonitor for Prometheus
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: flask-monitor
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: flask-ecom
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+```
 
 ---
 
-## 📄 License
-[MIT](https://choosealicense.com/licenses/mit/)
+## 📃 License
+
+This project is licensed under the MIT License.
+
+---
+
+Let me know if you want:
+- Ingress + TLS (SSL)
+- HPA for autoscaling
+- Full k8s folder structure
 
