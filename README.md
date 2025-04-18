@@ -1,93 +1,164 @@
 # Python Flask E-Commerce Website
 
-A simple e-commerce website using Flask, Jinja2, SQLite, jQuery, Bootstrap and Python.
+A simple full-stack e-commerce website built using Flask (Python), Jinja2, SQLite, jQuery, Bootstrap, and Docker. It features product listings, shopping cart functionality, and category-based filtering. The database (SQLite) is used to store clothing item data, and the UI is styled using Bootstrap's responsive cards.
 
-The application loads a gallery of clothing items that includes: image, name, price, and a small form to add clothing items to shopping cart. The clothing information is stored in a SQLite database and is displayed using Bootstrap's card class.
+---
 
-The application contains filters that were implemented through SQLite queries so that the user can scroll through the items according to different categories such as, Shirts, Pants, Shoes, Price etc.
+## 🔄 Project Fork and Setup
 
-<p align="center">
-  <img src="https://github.com/haxamxam/Flask-Python-E-Commerce/blob/master/clothing.png" width="1000" height="600" alt="accessibility text">
-</p>
+This project was cloned from the original GitHub repository:
+[https://github.com/haxamxam/Flask-Python-E-Commerce](https://github.com/haxamxam/Flask-Python-E-Commerce)
 
-The application can be visited here:
+---
 
-[https://sampleclothing.herokuapp.com/](https://sampleclothing.herokuapp.com/)
+## 🛠 Tech Stack
 
+- **Frontend:** HTML, CSS, Bootstrap, jQuery
+- **Backend:** Python Flask, Jinja2
+- **Database:** SQLite
+- **DevOps:** Docker, GitHub Actions, Nginx, AWS EC2, Kubernetes
 
-## Installation
+---
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install the dependencies.
-
-Go in the same directory as the requirements.txt file and run the following
+## 💻 Local Installation
 
 ```bash
 pip install -r requirements.txt
-```
-
-## Usage
-
-There are two ways to run the application the application
-
-### Run as Python application 
-
-Go to the same directory as the main application and run the following
-
-```bash
 python wsgi.py
 ```
-### Run as Flask application 
 
-Go to the same directory as the main application and run the following
+Visit: `http://localhost:5000`
 
+---
 
+## 🐳 Docker Setup
+
+### Dockerfile
+```Dockerfile
+FROM python:3.9-slim
+WORKDIR /app
+COPY . /app
+RUN pip install -r requirements.txt
+CMD ["python", "wsgi.py"]
+```
+
+### Docker Commands
 ```bash
-set FLASK_APP=application.py
-flask run
+docker build -t flask-ecommerce .
+docker run -d -p 5000:5000 flask-ecommerce
 ```
 
+---
 
-## Deploying on Heroku
+## 🐙 GitHub Actions CI/CD Workflow
 
-The entry point to the application is in wsgi.py file
+### `.github/workflows/deploy.yml`
+```yaml
+name: CI/CD - Flask E-Commerce App
 
-```python
-from application import app
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
-if __name__ == "__main__":
-    app.run()
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - run: |
+          python wsgi.py &
+          sleep 5
+          curl --fail http://localhost:5000 || exit 1
+
+  deploy:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          echo "${{ secrets.EC2_KEY }}" > key.pem
+          chmod 600 key.pem
+      - run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ${{ secrets.APP_DIR }}
+            git pull origin main
+            pip install -r requirements.txt
+            pkill -f wsgi.py || true
+            nohup python3 wsgi.py > app.log 2>&1 &
+          EOF
 ```
-We then need to create a Procfile to deploy to Heroku
 
+---
 
+## ☸ Kubernetes Deployment
 
+### 1. Docker Image Push (example)
 ```bash
-web: gunicorn wsgi:app
+docker build -t your-dockerhub-username/flask-ecommerce .
+docker push your-dockerhub-username/flask-ecommerce
 ```
 
-### Create the Heroku application
-
-Use the HerokuCLI to deploy the application to Heroku 
-
-```bash
-heroku login
-git init
-heroku create sampleclothing
-git add.
-git commit -am "First python app"
-git push heroku master
+### 2. `deployment.yaml`
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flask-ecommerce
+  template:
+    metadata:
+      labels:
+        app: flask-ecommerce
+    spec:
+      containers:
+      - name: flask-ecommerce
+        image: your-dockerhub-username/flask-ecommerce
+        ports:
+        - containerPort: 5000
 ```
 
-Once the files are deployed your application will be visible and can be visited. In our case the application is deployed at the link below:
+### 3. `service.yaml`
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: flask-ecommerce
+  ports:
+    - port: 80
+      targetPort: 5000
+```
 
+---
 
-[https://sampleclothing.herokuapp.com/](https://sampleclothing.herokuapp.com/)
+## 🔍 Features
 
+- Product listing and filtering
+- Shopping cart
+- SQLite database
+- Responsive UI with Bootstrap
+- CI/CD with GitHub Actions
+- EC2 deployment using SSH
+- Dockerized application
+- Kubernetes-ready
 
-## Contributing
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+---
 
-Please make sure to update tests as appropriate.
-
-## License
+## 📄 License
 [MIT](https://choosealicense.com/licenses/mit/)
+
